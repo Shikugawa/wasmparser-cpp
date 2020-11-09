@@ -213,13 +213,56 @@ enum class InstructionSymbol : uint8_t {
   I64_EXTEND8_S = 0xC2,
   I64_EXTEND16_S = 0xC3,
   I64_EXTEND32_S = 0xC4,
+  I32_TRUNC_SAT_F32_S,
+  I32_TRUNC_SAT_F32_U,
+  I32_TRUNC_SAT_F64_S,
+  I32_TRUNC_SAT_F64_U,
+  I64_TRUNC_SAT_F32_S,
+  I64_TRUNC_SAT_F32_U,
+  I64_TRUNC_SAT_F64_S,
+  I64_TRUNC_SAT_F64_U,
 };
 
-struct BlockControlInstruction {
-  const InstructionSymbol symbol_ = InstructionSymbol::BLOCK;
+uint8_t operandByteSize(Byte raw) {
+    // Parametric Instructions
+    if (raw == 0x1A || raw == 0x1B) {
+        return 0;
+    }
+    // Numeric Instructions
+    if (0x45 <= raw && raw <= 0xC4) {
+        return 0;
+    }
+    // Variable Instructions
+    if (0x20 <= raw && raw <= 0x24) {
+        return 4;
+    }
+    // Memory Instructions
+    if (0x28 <= raw && raw <= 0x3E) {
+        return 8;
+    }
+    if (raw == 0x3F || raw == 0x40) {
+        return 1; // Accepts 0x00 only
+    }
+    // Numeric Instructions
+    if (raw == 0x41 || raw == 0x43) {
+        return 4;
+    }
+    if (raw == 0x42 || raw == 0x44) {
+        return 8;
+    }
+    // Truncation instructions are not supported right now.
+    assert(false);
+}
+
+struct Instruction {
+    InstructionSymbol symbol_;
+    // This operand is LEB128 encoded value, it means that we should have decode this values
+    // when execution.
+    std::vector<Byte> operands_;
 };
 
-using Expr = std::vector<InstructionSymbol>;
+using Expr = std::vector<Instruction>;
+
 }  // namespace wasmparser
 
 #endif  // WASMPARSER_CPP_INSTRUCTION_H

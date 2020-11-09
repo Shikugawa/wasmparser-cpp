@@ -26,6 +26,7 @@
 #ifndef WASMPARSER_CPP_TYPES_H
 #define WASMPARSER_CPP_TYPES_H
 
+#include <optional>
 #include <vector>
 
 namespace wasmparser {

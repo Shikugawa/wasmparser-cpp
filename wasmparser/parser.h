@@ -106,6 +106,12 @@ Module Parser::doParse(std::string_view filename) {
   if (!p.checkVersionField()) {
     throw std::runtime_error("Invalid version number");
   }
+
+  Module m;
+  if (!p.doParseSection(&m)) {
+      throw std::runtime_error("Failed to parse sections");
+  }
+  return m;
 }
 
 bool Parser::doParseSection(Module* m) {
@@ -315,16 +321,17 @@ int32_t Parser::doParseExportSection(ExportSection* es) {
   if (doParseU32Integer(&es->size_) < 0) {
     return -1;
   }
-  size_t end_idx = idx_ + es->size_;
   if (doParseU32Integer(&es->value_.size_) < 0) {
     return -1;
   }
-  while (idx_ < end_idx) {
+  size_t val_count = 0;
+  while (val_count < es->value_.size_) {
     Export e;
     if (doParseExport(&e) < 0) {
       return -1;
     }
     es->value_.elem_.emplace_back(e);
+    ++val_count;
   }
   return idx_ - start_idx;
 }
@@ -366,13 +373,14 @@ int32_t Parser::doParseElement(Element* e) {
   if (doParseU32Integer(&e->init_.size_) < 0) {
     return -1;
   }
-  size_t end_idx = idx_ + e->init_.size_;
-  while (idx_ < end_idx) {
+  size_t val_count = 0;
+  while (val_count < e->init_.size_) {
     FuncIdx idx;
     if (doParseFuncIdx(&idx) < 0) {
       return -1;
     }
     e->init_.elem_.emplace_back(idx);
+    ++val_count;
   }
   return idx_ - start_idx;
 }
@@ -383,15 +391,17 @@ int32_t Parser::doParseElementSection(ElementSection* es) {
   if (doParseU32Integer(&es->size_) < 0) {
     return -1;
   }
-  size_t end_idx = idx_ + es->size_;
   if (doParseU32Integer(&es->value_.size_) < 0) {
     return -1;
   }
-  while (idx_ < end_idx) {
+  size_t val_count = 0;
+  while (val_count < es->value_.size_) {
     Element e;
     if (doParseElement(&e) < 0) {
       return -1;
     }
+    es->value_.elem_.emplace_back(e);
+    ++val_count;
   }
   return idx_ - start_idx;
 }
@@ -399,10 +409,17 @@ int32_t Parser::doParseElementSection(ElementSection* es) {
 int32_t Parser::doParseExpr(Expr* expr) {
   size_t start_idx = idx_;
   while (*buf_->at(idx_) != 0x0B) {
-    // Note that it won't fail to cast when passed byte had not supported in
-    // this parser.
-    expr->emplace_back(static_cast<InstructionSymbol>(*buf_->at(idx_)));
-    idx_ += 1;
+      Instruction instr;
+      instr.symbol_ = static_cast<InstructionSymbol>(*buf_->at(idx_));
+      auto op_size = operandByteSize(*buf_->at(idx_));
+      ++idx_;
+      size_t val_count = 0;
+      while (val_count < op_size) {
+          instr.operands_.emplace_back(*buf_->at(idx_));
+          ++idx_;
+          ++val_count;
+      }
+      expr->emplace_back(instr);
   }
   idx_ += 1;
   return idx_ - start_idx;
@@ -414,17 +431,17 @@ int32_t Parser::doParseFunctionSection(FuncSection* fc) {
   if (doParseU32Integer(&fc->size_) < 0) {
     return -1;
   }
-  size_t end_idx = idx_ + fc->size_;
-
   if (doParseU32Integer(&fc->value_.size_) < 0) {
     return -1;
   }
-  while (idx_ < end_idx) {
+  size_t val_count = 0;
+  while (val_count < fc->value_.size_) {
     TypeIdx idx;
     if (doParseTypeIdx(&idx) < 0) {
       return -1;
     }
     fc->value_.elem_.emplace_back(idx);
+    ++val_count;
   }
   return idx_ - start_idx;
 }
@@ -435,17 +452,17 @@ int32_t Parser::doParseImportSection(ImportSection* is) {
   if (doParseU32Integer(&is->size_) < 0) {
     return -1;
   }
-  size_t end_idx = idx_ + is->size_;
-
   if (doParseU32Integer(&is->value_.size_) < 0) {
     return -1;
   }
-  while (idx_ < end_idx) {
+  size_t val_count = 0;
+  while (val_count < is->value_.size_) {
     Import ip;
     if (doParseImport(&ip) < 0) {
       return -1;
     }
     is->value_.elem_.emplace_back(ip);
+    ++val_count;
   }
   return idx_ - start_idx;
 }
@@ -456,17 +473,17 @@ int32_t Parser::doParseTableSection(TableSection* ts) {
   if (doParseU32Integer(&ts->size_) < 0) {
     return -1;
   }
-  size_t end_idx = idx_ + ts->size_;
-
   if (doParseU32Integer(&ts->value_.size_) < 0) {
     return -1;
   }
-  while (idx_ < end_idx) {
+  size_t val_count = 0;
+  while (val_count < ts->value_.size_) {
     TableType tt;
     if (doParseTableTypes(&tt) < 0) {
       return -1;
     }
     ts->value_.elem_.emplace_back(tt);
+    ++val_count;
   }
   return idx_ - start_idx;
 }
@@ -488,17 +505,17 @@ int32_t Parser::doParseGlobalSection(GlobalSection* gs) {
   if (doParseU32Integer(&gs->size_) < 0) {
     return -1;
   }
-  size_t end_idx = idx_ + gs->size_;
-
   if (doParseU32Integer(&gs->value_.size_) < 0) {
     return -1;
   }
-  while (idx_ < end_idx) {
+  size_t val_count = 0;
+  while (val_count < gs->value_.size_) {
     Global g;
     if (doParseGlobal(&g) < 0) {
       return -1;
     }
     gs->value_.elem_.emplace_back(g);
+    ++val_count;
   }
   return idx_ - start_idx;
 }
@@ -644,13 +661,14 @@ int32_t Parser::doParseResultTypes(ResultType* rt) {
   if (doParseU32Integer(&rt->size_) < 0) {
     return -1;
   }
-  size_t end_idx = idx_ + rt->size_;
-  while (idx_ < end_idx) {
+  size_t val_count = 0;
+  while (val_count < rt->size_) {
     ValType val;
     if (doParseValueTypes(&val) < 0) {
       return -1;
     }
     rt->elem_.emplace_back(val);
+    ++val_count;
   }
   return idx_ - start_idx;
 }
@@ -683,17 +701,17 @@ int32_t Parser::doParseTypeSection(TypeSection* ts) {
   if (doParseU32Integer(&ts->size_) < 0) {
     return -1;
   }
-  size_t end_idx = idx_ + ts->size_;
-
   if (doParseU32Integer(&ts->value_.size_) < 0) {
     return -1;
   }
-  while (idx_ < end_idx) {
+  size_t val_count = 0;
+  while (val_count < ts->value_.size_) {
     FuncType ft;
     if (doParseFuncType(&ft) < 0) {
       return -1;
     }
     ts->value_.elem_.emplace_back(ft);
+    ++val_count;
   }
   return idx_ - start_idx;
 }
@@ -704,17 +722,17 @@ int32_t Parser::doParseMemorySection(MemorySection* ms) {
   if (doParseU32Integer(&ms->size_) < 0) {
     return -1;
   }
-  size_t end_idx = idx_ + ms->size_;
-
   if (doParseU32Integer(&ms->value_.size_) < 0) {
     return -1;
   }
-  while (idx_ < end_idx) {
+  size_t val_count = 0;
+  while (val_count < ms->value_.size_) {
     MemoryType mt;
     if (doParseMemoryTypes(&mt) < 0) {
       return -1;
     }
     ms->value_.elem_.emplace_back(mt);
+    ++val_count;
   }
   return idx_ - start_idx;
 }
@@ -794,10 +812,11 @@ int32_t Parser::doReadByteStream(Bytes* buf) {
   if (doParseU32Integer(&buf->size_) < 0) {
     return -1;
   }
-  size_t end_idx = idx_ + buf->size_;
-  while (idx_ < end_idx) {
+  size_t val_count = 0;
+  while (val_count < buf->size_) {
     buf->elem_.emplace_back(*buf_->at(idx_));
     ++idx_;
+    ++val_count;
   }
   return idx_ - start_idx;
 }
@@ -807,8 +826,8 @@ int32_t Parser::doParseName(Name* name) {
   if (doParseU32Integer(&name->size_) < 0) {
     return -1;
   }
-  size_t end_idx = idx_ + name->size_;
-  while (idx_ < end_idx) {
+  size_t val_count = 0;
+  while (val_count < name->size_) {
     name->elem_.emplace_back(*buf_->at(idx_));
     ++idx_;
   }
