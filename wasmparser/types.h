@@ -70,7 +70,7 @@ struct GlobalType {
   Mutability mut_;
 };
 
-using Byte = unsigned const char;
+using Byte = unsigned char;
 using Name = Vec<Byte>;
 using Bytes = Vec<Byte>;
 using ElemType = Byte;

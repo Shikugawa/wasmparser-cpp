@@ -43,7 +43,7 @@ class ZeroCopyBuffer {
   ZeroCopyBuffer(const ZeroCopyBuffer& buf) = delete;
   ZeroCopyBuffer(char* buf, size_t size);
 
-  Byte* at(size_t idx) const;
+  Byte* at(size_t idx);
   size_t size() const { return buf_.size(); }
 
  private:
@@ -63,7 +63,7 @@ std::unique_ptr<ZeroCopyBuffer> ZeroCopyBuffer::createBuffer(
   return std::make_unique<ZeroCopyBuffer>(&buf[0], size);
 }
 
-Byte* ZeroCopyBuffer::at(size_t idx) const {
+Byte* ZeroCopyBuffer::at(size_t idx) {
   if (idx >= buf_.size()) {
     throw std::runtime_error("Invalid buffer access");
   }

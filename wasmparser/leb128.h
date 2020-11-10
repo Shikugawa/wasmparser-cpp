@@ -1,5 +1,6 @@
 // MIT License
 //
+//
 // Copyright (c) Rei Shimizu 2020
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy

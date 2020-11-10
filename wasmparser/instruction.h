@@ -223,45 +223,9 @@ enum class InstructionSymbol : uint8_t {
   I64_TRUNC_SAT_F64_U,
 };
 
-uint8_t operandByteSize(Byte raw) {
-    // Parametric Instructions
-    if (raw == 0x1A || raw == 0x1B) {
-        return 0;
-    }
-    // Numeric Instructions
-    if (0x45 <= raw && raw <= 0xC4) {
-        return 0;
-    }
-    // Variable Instructions
-    if (0x20 <= raw && raw <= 0x24) {
-        return 4;
-    }
-    // Memory Instructions
-    if (0x28 <= raw && raw <= 0x3E) {
-        return 8;
-    }
-    if (raw == 0x3F || raw == 0x40) {
-        return 1; // Accepts 0x00 only
-    }
-    // Numeric Instructions
-    if (raw == 0x41 || raw == 0x43) {
-        return 4;
-    }
-    if (raw == 0x42 || raw == 0x44) {
-        return 8;
-    }
-    // Truncation instructions are not supported right now.
-    assert(false);
-}
-
-struct Instruction {
-    InstructionSymbol symbol_;
-    // This operand is LEB128 encoded value, it means that we should have decode this values
-    // when execution.
-    std::vector<Byte> operands_;
-};
-
-using Expr = std::vector<Instruction>;
+// Instruction symbols and raw bytes which means operand of them.
+// This value is completely raw bytes extracted from wasm binary.
+using Expr = std::vector<Byte>;
 
 }  // namespace wasmparser
 

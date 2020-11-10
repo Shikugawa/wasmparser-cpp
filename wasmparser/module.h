@@ -52,13 +52,13 @@ enum class SectionId : Byte {
   Export = 0x07,
   Start = 0x08,
   Element = 0x09,
-  Code = 0x10,
-  Data = 0x11,
+  Code = 0x0a,
+  Data = 0x0b,
 };
 
 struct Custom {
   Name name_;
-  Bytes bytes_;
+  std::vector<Byte> bytes_;
 };
 
 template <class T>
@@ -80,11 +80,6 @@ struct Import {
   ImportDescVariant desc_;
 };
 
-struct Global {
-  GlobalType type_;
-  Expr expr_;
-};
-
 enum class ExportDescType : Byte {
   FuncIdx = 0x00,
   TableIdx = 0x01,
@@ -102,34 +97,6 @@ struct Export {
   ExportDesc desc_;
 };
 
-struct Element {
-  TableIdx table_;
-  Expr offset_;
-  Vec<FuncIdx> init_;
-};
-
-struct Local {
-  uint32_t nums_;  // denoting count locals of the same value type.
-  ValType type_;
-};
-
-struct Func {
-  Vec<Local> locals_;
-  Expr body_;
-};
-
-struct Code {
-  uint32_t size_;  // the function code in bytes,
-  Func code_;
-};
-
-struct Data {
- public:
-  MemIdx idx_;
-  Expr offset_;
-  Bytes bytes_;
-};
-
 template <class T>
 struct Section {
   uint32_t size_;
@@ -141,12 +108,21 @@ using ImportSection = Section<Vec<Import>>;
 using FuncSection = Section<Vec<FuncIdx>>;
 using TableSection = Section<Vec<TableType>>;
 using MemorySection = Section<Vec<MemoryType>>;
-using GlobalSection = Section<Vec<Global>>;
+// Global section has the value which can't be distinguished on runtime.
+// In detail, we can't determine the length of global because it has
+// expressions.
+using GlobalSection = Section<Bytes>;
 using ExportSection = Section<Vec<Export>>;
 using StartSection = Section<FuncIdx>;
-using ElementSection = Section<Vec<Element>>;
-using CodeSection = Section<Vec<Code>>;
-using DataSection = Section<Vec<Data>>;
+// Element section has the value which can't be distinguished on runtime.
+// In detail, we can't determine the length of data because it has expressions.
+using ElementSection = Section<Bytes>;
+// Code section has the value which can't be distinguished on runtime.
+// In detail, we can't determine the length of data because it has expressions.
+using CodeSection = Section<Bytes>;
+// Data section has the value which can't be distinguished on runtime.
+// In detail, we can't determine the length of data because it has expressions.
+using DataSection = Section<Bytes>;
 using CustomSection = Section<Custom>;
 
 struct Module {

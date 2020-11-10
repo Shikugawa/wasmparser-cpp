@@ -27,6 +27,6 @@
 #include "wasmparser/parser.h"
 
 int main() {
-    std::cout << "Hello, World!" << std::endl;
+    auto mod = wasmparser::Parser::doParse("../testdata/fibonacci.wasm");
     return 0;
 }
