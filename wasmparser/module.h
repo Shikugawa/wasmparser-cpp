@@ -28,7 +28,6 @@
 
 #include <variant>
 
-#include "instruction.h"
 #include "types.h"
 
 namespace wasmparser {
@@ -40,6 +39,10 @@ using MemIdx = uint32_t;
 using GlobalIdx = uint32_t;
 using LocalIdx = uint32_t;
 using LabelIdx = uint32_t;
+
+// Instruction symbols and raw bytes which means operand of them.
+// This value is completely raw bytes extracted from wasm binary.
+using Expr = std::vector<Byte>;
 
 enum class SectionId : Byte {
   Custom = 0x00,
@@ -108,22 +111,16 @@ using ImportSection = Section<Vec<Import>>;
 using FuncSection = Section<Vec<FuncIdx>>;
 using TableSection = Section<Vec<TableType>>;
 using MemorySection = Section<Vec<MemoryType>>;
-// Global section has the value which can't be distinguished on runtime.
-// In detail, we can't determine the length of global because it has
-// expressions.
-using GlobalSection = Section<Bytes>;
 using ExportSection = Section<Vec<Export>>;
 using StartSection = Section<FuncIdx>;
-// Element section has the value which can't be distinguished on runtime.
-// In detail, we can't determine the length of data because it has expressions.
-using ElementSection = Section<Bytes>;
-// Code section has the value which can't be distinguished on runtime.
-// In detail, we can't determine the length of data because it has expressions.
-using CodeSection = Section<Bytes>;
-// Data section has the value which can't be distinguished on runtime.
-// In detail, we can't determine the length of data because it has expressions.
-using DataSection = Section<Bytes>;
 using CustomSection = Section<Custom>;
+
+// These sections have the value which can't be distinguished on runtime.
+// In detail, we can't determine the length of internal structures because it has expressions.
+using RawBufferDataSection = Section<Bytes>;
+using RawBufferCodeSection = Section<Bytes>;
+using RawBufferElementSection = Section<Bytes>;
+using RawBufferGlobalSection = Section<Bytes>;
 
 struct Module {
  public:
@@ -132,12 +129,12 @@ struct Module {
   FuncSection func_sec_;
   TableSection table_sec_;
   MemorySection mem_sec_;
-  GlobalSection global_sec_;
+  RawBufferGlobalSection global_sec_;
   ExportSection export_sec_;
   StartSection start_sec_;
-  ElementSection element_sec_;
-  CodeSection code_sec_;
-  DataSection data_sec_;
+  RawBufferElementSection element_sec_;
+  RawBufferCodeSection code_sec_;
+  RawBufferDataSection data_sec_;
   std::vector<CustomSection> custom_sec_;
 };
 

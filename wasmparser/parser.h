@@ -68,7 +68,7 @@ class Parser {
   int32_t doParseGlobalTypes(GlobalType* gt);
   int32_t doParseTableSection(TableSection* ts);
   int32_t doParseMemorySection(MemorySection* ms);
-  int32_t doParseGlobalSection(GlobalSection* gs);
+  int32_t doParseGlobalSection(RawBufferGlobalSection* gs);
   int32_t doParseFuncIdx(FuncIdx* idx);
   int32_t doParseTableIdx(TableIdx* idx);
   int32_t doParseMemIdx(MemIdx* idx);
@@ -77,9 +77,9 @@ class Parser {
   int32_t doParseExportDesc(ExportDesc* ed);
   int32_t doParseExport(Export* e);
   int32_t doParseStartSection(StartSection* ss);
-  int32_t doParseElementSection(ElementSection* es);
-  int32_t doParseCodeSection(CodeSection* cs);
-  int32_t doParseDataSection(DataSection* ds);
+  int32_t doParseElementSection(RawBufferElementSection* es);
+  int32_t doParseCodeSection(RawBufferCodeSection* cs);
+  int32_t doParseDataSection(RawBufferDataSection* ds);
 
   size_t idx_{8};
   ZeroCopyBufferPtr buf_;
@@ -160,7 +160,7 @@ bool Parser::doParseSection(Module* m) {
         break;
       }
       case SectionId::Element: {
-        ElementSection es;
+        RawBufferElementSection es;
         if (doParseElementSection(&es) < 0) {
           return false;
         }
@@ -168,7 +168,7 @@ bool Parser::doParseSection(Module* m) {
         break;
       }
       case SectionId::Code: {
-        CodeSection cs;
+        RawBufferCodeSection cs;
         if (doParseCodeSection(&cs) < 0) {
           return false;
         }
@@ -176,7 +176,7 @@ bool Parser::doParseSection(Module* m) {
         break;
       }
       case SectionId::Data: {
-        DataSection ds;
+        RawBufferDataSection ds;
         if (doParseDataSection(&ds) < 0) {
           return false;
         }
@@ -200,7 +200,7 @@ bool Parser::doParseSection(Module* m) {
         break;
       }
       case SectionId::Global: {
-        GlobalSection gs;
+        RawBufferGlobalSection gs;
         if (doParseGlobalSection(&gs) < 0) {
           return false;
         }
@@ -355,7 +355,7 @@ int32_t Parser::doParseStartSection(StartSection* ss) {
   return idx_ - start_idx;
 }
 
-int32_t Parser::doParseElementSection(ElementSection* es) {
+int32_t Parser::doParseElementSection(RawBufferElementSection* es) {
   size_t start_idx = idx_;
   if (doParseU32Integer(&es->size_) < 0) {
     return -1;
@@ -436,7 +436,7 @@ int32_t Parser::doParseTableSection(TableSection* ts) {
   return idx_ - start_idx;
 }
 
-int32_t Parser::doParseGlobalSection(GlobalSection* gs) {
+int32_t Parser::doParseGlobalSection(RawBufferGlobalSection* gs) {
   size_t start_idx = idx_;
   if (doParseU32Integer(&gs->size_) < 0) {
     return -1;
@@ -454,7 +454,7 @@ int32_t Parser::doParseGlobalSection(GlobalSection* gs) {
   return idx_ - start_idx;
 }
 
-int32_t Parser::doParseCodeSection(CodeSection* cs) {
+int32_t Parser::doParseCodeSection(RawBufferCodeSection* cs) {
   size_t start_idx = idx_;
   if (doParseU32Integer(&cs->size_) < 0) {
     return -1;
@@ -509,7 +509,7 @@ int32_t Parser::doParseTableTypes(TableType* tt) {
   return idx_ - start_idx;
 }
 
-int32_t Parser::doParseDataSection(DataSection* ds) {
+int32_t Parser::doParseDataSection(RawBufferDataSection* ds) {
   size_t start_idx = idx_;
   if (doParseU32Integer(&ds->size_) < 0) {
     return -1;
