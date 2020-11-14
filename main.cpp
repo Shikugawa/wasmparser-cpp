@@ -28,5 +28,6 @@
 
 int main() {
     auto mod = wasmparser::Parser::doParse("../testdata/fibonacci.wasm");
+    std::cout << mod.code_sec.size << std::endl;
     return 0;
 }

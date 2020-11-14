@@ -57,7 +57,7 @@ std::unique_ptr<ZeroCopyBuffer> ZeroCopyBuffer::createBuffer(
     throw std::runtime_error("Failed to check file stats.");
   }
   auto size = result.st_size;
-  std::ifstream stream(filename, std::ios::in | std::ios::binary);
+  std::ifstream stream(filename.data(), std::ios::in | std::ios::binary);
   char buf[size];
   stream.read(buf, size);
   return std::make_unique<ZeroCopyBuffer>(&buf[0], size);

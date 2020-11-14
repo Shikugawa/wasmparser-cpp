@@ -40,15 +40,15 @@ enum class ValType : uint8_t {
 
 template <class T>
 struct Vec {
-  uint32_t size_;
-  std::vector<T> elem_;
+  uint32_t size;
+  std::vector<T> elem;
 };
 
 using ResultType = Vec<ValType>;
 
 struct FuncType {
-  ResultType param_;
-  ResultType return_;
+  ResultType param_type;
+  ResultType return_type;
 };
 
 struct Limit {
@@ -57,7 +57,7 @@ struct Limit {
 };
 
 struct MemoryType {
-  Limit limit_;
+  Limit limit;
 };
 
 enum class Mutability : uint8_t {
@@ -66,8 +66,8 @@ enum class Mutability : uint8_t {
 };
 
 struct GlobalType {
-  ValType val_type_;
-  Mutability mut_;
+  ValType val_type;
+  Mutability mut;
 };
 
 using Byte = unsigned char;
@@ -77,7 +77,7 @@ using ElemType = Byte;
 
 struct TableType {
   unsigned char et_ = 0x70;
-  Limit limit_;
+  Limit limit;
 };
 
 }  // namespace wasmparser

@@ -60,13 +60,13 @@ enum class SectionId : Byte {
 };
 
 struct Custom {
-  Name name_;
-  std::vector<Byte> bytes_;
+  Name name;
+  std::vector<Byte> bytes;
 };
 
 template <class T>
 struct ImportDesc {
-  T value_;
+  T value;
 };
 
 using TypeIdxImportDesc = ImportDesc<TypeIdx>;
@@ -78,9 +78,9 @@ using ImportDescVariant = std::variant<TypeIdxImportDesc, TableTypeImportDesc,
                                        MemTypeImportDesc, GlobalTypeImportDesc>;
 
 struct Import {
-  Name module_name_;
-  Name name_;
-  ImportDescVariant desc_;
+  Name module_name;
+  Name name;
+  ImportDescVariant desc;
 };
 
 enum class ExportDescType : Byte {
@@ -91,19 +91,19 @@ enum class ExportDescType : Byte {
 };
 
 struct ExportDesc {
-  ExportDescType type_;
-  uint32_t idx_;
+  ExportDescType type;
+  uint32_t idx;
 };
 
 struct Export {
-  Name name_;
-  ExportDesc desc_;
+  Name name;
+  ExportDesc desc;
 };
 
 template <class T>
 struct Section {
-  uint32_t size_;
-  T value_;
+  uint32_t size;
+  T value;
 };
 
 using TypeSection = Section<Vec<FuncType>>;
@@ -124,18 +124,18 @@ using RawBufferGlobalSection = Section<Bytes>;
 
 struct Module {
  public:
-  TypeSection type_sec_;
-  ImportSection import_sec_;
-  FuncSection func_sec_;
-  TableSection table_sec_;
-  MemorySection mem_sec_;
-  RawBufferGlobalSection global_sec_;
-  ExportSection export_sec_;
-  StartSection start_sec_;
-  RawBufferElementSection element_sec_;
-  RawBufferCodeSection code_sec_;
-  RawBufferDataSection data_sec_;
-  std::vector<CustomSection> custom_sec_;
+  TypeSection type_sec;
+  ImportSection import_sec;
+  FuncSection func_sec;
+  TableSection table_sec;
+  MemorySection mem_sec;
+  RawBufferGlobalSection global_sec;
+  ExportSection export_sec;
+  StartSection start_sec;
+  RawBufferElementSection element_sec;
+  RawBufferCodeSection code_sec;
+  RawBufferDataSection data_sec;
+  std::vector<CustomSection> custom_sec;
 };
 
 }  // namespace wasmparser
