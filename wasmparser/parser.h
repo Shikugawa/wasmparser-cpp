@@ -33,6 +33,7 @@
 #include "buffer.h"
 #include "leb128.h"
 #include "module.h"
+#include "value.h"
 
 namespace wasmparser {
 namespace {
@@ -54,14 +55,13 @@ class Parser {
   int32_t doParseTypeSection(TypeSection* ts);
   int32_t doParseFuncType(FuncType* ft);
   int32_t doParseName(Name* name);
-  int32_t doParseValueTypes(ValType* val);
+  int32_t doParseValueTypes(ValueType* val);
   int32_t doParseResultTypes(ResultType* rt);
   int32_t doParseU32Integer(uint32_t* size);
-  int32_t doParseImportDesc(ImportDescVariant* vd);
+  int32_t doParseImportDesc(Import::ImportDescVariant* vd);
   int32_t doParseImport(Import* ip);
   int32_t doParseImportSection(ImportSection* is);
   int32_t doParseFunctionSection(FuncSection* fc);
-  int32_t doParseTypeIdx(TypeIdx* idx);
   int32_t doParseTableTypes(TableType* tt);
   int32_t doParseLimits(Limit* l);
   int32_t doParseMemoryTypes(MemoryType* mt);
@@ -69,12 +69,8 @@ class Parser {
   int32_t doParseTableSection(TableSection* ts);
   int32_t doParseMemorySection(MemorySection* ms);
   int32_t doParseGlobalSection(RawBufferGlobalSection* gs);
-  int32_t doParseFuncIdx(FuncIdx* idx);
-  int32_t doParseTableIdx(TableIdx* idx);
-  int32_t doParseMemIdx(MemIdx* idx);
-  int32_t doParseGlobalIdx(GlobalIdx* idx);
   int32_t doParseExportSection(ExportSection* es);
-  int32_t doParseExportDesc(ExportDesc* ed);
+  int32_t doParseExportDesc(Export::ExportDesc* ed);
   int32_t doParseExport(Export* e);
   int32_t doParseStartSection(StartSection* ss);
   int32_t doParseElementSection(RawBufferElementSection* es);
@@ -214,15 +210,15 @@ bool Parser::doParseSection(Module* m) {
   return true;
 }
 
-int32_t Parser::doParseValueTypes(ValType* val) {
+int32_t Parser::doParseValueTypes(ValueType* val) {
   if (*buf_->at(idx_) == 0x7F) {
-    *val = ValType::I32;
+    *val = ValueType::I32;
   } else if (*buf_->at(idx_) == 0x7E) {
-    *val = ValType::I64;
+    *val = ValueType::I64;
   } else if (*buf_->at(idx_) == 0x7D) {
-    *val = ValType::F32;
+    *val = ValueType::F32;
   } else if (*buf_->at(idx_) == 0x7C) {
-    *val = ValType::F64;
+    *val = ValueType::F64;
   } else {
     return -1;
   }
@@ -230,32 +226,32 @@ int32_t Parser::doParseValueTypes(ValType* val) {
   return 1;
 }
 
-int32_t Parser::doParseImportDesc(ImportDescVariant* vd) {
+int32_t Parser::doParseImportDesc(Import::ImportDescVariant* vd) {
   size_t start_idx = idx_;
   if (*buf_->at(idx_) == 0x00) {
     ++idx_;
-    TypeIdxImportDesc ti;
-    if (doParseTypeIdx(&ti.value) < 0) {
+    Import::TypeIdxImportDesc ti;
+    if (doParseU32Integer(&ti.value) < 0) {
       return -1;
     }
     *vd = ti;
   } else if (*buf_->at(idx_) == 0x01) {
     ++idx_;
-    TableTypeImportDesc tt;
+    Import::TableTypeImportDesc tt;
     if (doParseTableTypes(&tt.value) < 0) {
       return -1;
     }
     *vd = tt;
   } else if (*buf_->at(idx_) == 0x02) {
     ++idx_;
-    MemTypeImportDesc mt;
+    Import::MemTypeImportDesc mt;
     if (doParseMemoryTypes(&mt.value) < 0) {
       return -1;
     }
     *vd = mt;
   } else if (*buf_->at(idx_) == 0x03) {
     ++idx_;
-    GlobalTypeImportDesc gt;
+    Import::GlobalTypeImportDesc gt;
     if (doParseGlobalTypes(&gt.value) < 0) {
       return -1;
     }
@@ -266,30 +262,30 @@ int32_t Parser::doParseImportDesc(ImportDescVariant* vd) {
   return idx_ - start_idx;
 }
 
-int32_t Parser::doParseExportDesc(ExportDesc* ed) {
+int32_t Parser::doParseExportDesc(Export::ExportDesc* ed) {
   size_t start_idx = idx_;
   if (*buf_->at(idx_) == 0x00) {
     ++idx_;
-    ed->type = ExportDescType::FuncIdx;
-    if (doParseFuncIdx(&ed->idx) < 0) {
+    ed->type = Export::ExportDesc::ExportDescType::FuncIdx;
+    if (doParseU32Integer(&ed->idx) < 0) {
       return -1;
     }
   } else if (*buf_->at(idx_) == 0x01) {
     ++idx_;
-    ed->type = ExportDescType::TableIdx;
-    if (doParseTableIdx(&ed->idx) < 0) {
+    ed->type = Export::ExportDesc::ExportDescType::TableIdx;
+    if (doParseU32Integer(&ed->idx) < 0) {
       return -1;
     }
   } else if (*buf_->at(idx_) == 0x02) {
     ++idx_;
-    ed->type = ExportDescType::MemIdx;
-    if (doParseMemIdx(&ed->idx) < 0) {
+    ed->type = Export::ExportDesc::ExportDescType::MemIdx;
+    if (doParseU32Integer(&ed->idx) < 0) {
       return -1;
     }
   } else if (*buf_->at(idx_) == 0x03) {
     ++idx_;
-    ed->type = ExportDescType::GlobalIdx;
-    if (doParseGlobalIdx(&ed->idx) < 0) {
+    ed->type = Export::ExportDesc::ExportDescType::GlobalIdx;
+    if (doParseU32Integer(&ed->idx) < 0) {
       return -1;
     }
   } else {
@@ -349,7 +345,7 @@ int32_t Parser::doParseStartSection(StartSection* ss) {
   if (doParseU32Integer(&ss->size) < 0) {
     return -1;
   }
-  if (doParseFuncIdx(&ss->value) < 0) {
+  if (doParseU32Integer(&ss->value) < 0) {
     return -1;
   }
   return idx_ - start_idx;
@@ -386,8 +382,8 @@ int32_t Parser::doParseFunctionSection(FuncSection* fc) {
   }
   size_t val_count = 0;
   while (val_count < fc->value.size) {
-    TypeIdx idx;
-    if (doParseTypeIdx(&idx) < 0) {
+    uint32_t idx;
+    if (doParseU32Integer(&idx) < 0) {
       return -1;
     }
     fc->value.elem.emplace_back(idx);
@@ -535,7 +531,7 @@ int32_t Parser::doParseResultTypes(ResultType* rt) {
   }
   size_t val_count = 0;
   while (val_count < rt->size) {
-    ValType val;
+    ValueType val;
     if (doParseValueTypes(&val) < 0) {
       return -1;
     }
@@ -608,55 +604,15 @@ int32_t Parser::doParseMemorySection(MemorySection* ms) {
   return idx_ - start_idx;
 }
 
-int32_t Parser::doParseTypeIdx(TypeIdx* idx) {
-  size_t start_idx = idx_;
-  if (doParseU32Integer(idx) < 0) {
-    return -1;
-  }
-  return idx_ - start_idx;
-}
-
-int32_t Parser::doParseFuncIdx(FuncIdx* idx) {
-  size_t start_idx = idx_;
-  if (doParseU32Integer(idx) < 0) {
-    return -1;
-  }
-  return idx_ - start_idx;
-}
-
-int32_t Parser::doParseTableIdx(TableIdx* idx) {
-  size_t start_idx = idx_;
-  if (doParseU32Integer(idx) < 0) {
-    return -1;
-  }
-  return idx_ - start_idx;
-}
-
-int32_t Parser::doParseMemIdx(MemIdx* idx) {
-  size_t start_idx = idx_;
-  if (doParseU32Integer(idx) < 0) {
-    return -1;
-  }
-  return idx_ - start_idx;
-}
-
-int32_t Parser::doParseGlobalIdx(GlobalIdx* idx) {
-  size_t start_idx = idx_;
-  if (doParseU32Integer(idx) < 0) {
-    return -1;
-  }
-  return idx_ - start_idx;
-}
-
 int32_t Parser::doParseGlobalTypes(GlobalType* gt) {
   size_t start_idx = idx_;
   if (doParseValueTypes(&gt->val_type) < 0) {
     return -1;
   }
   if (*buf_->at(idx_) == 0x00) {
-    gt->mut = Mutability::Const;
+    gt->mut = GlobalType::Mutability::Const;
   } else if (*buf_->at(idx_) == 0x01) {
-    gt->mut = Mutability::Var;
+    gt->mut = GlobalType::Mutability::Var;
   } else {
     return -1;
   }

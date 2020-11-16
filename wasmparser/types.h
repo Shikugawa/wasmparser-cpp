@@ -29,22 +29,18 @@
 #include <optional>
 #include <vector>
 
+#include "value.h"
+
 namespace wasmparser {
 
-enum class ValType : uint8_t {
+enum class ValueType : uint8_t {
   I32 = 0x7F,
   I64 = 0x7E,
   F32 = 0x7D,
   F64 = 0x7C,
 };
 
-template <class T>
-struct Vec {
-  uint32_t size;
-  std::vector<T> elem;
-};
-
-using ResultType = Vec<ValType>;
+using ResultType = Vec<ValueType>;
 
 struct FuncType {
   ResultType param_type;
@@ -60,23 +56,18 @@ struct MemoryType {
   Limit limit;
 };
 
-enum class Mutability : uint8_t {
-  Const = 0x00,
-  Var = 0x01,
-};
-
 struct GlobalType {
-  ValType val_type;
+  enum class Mutability : uint8_t {
+    Const = 0x00,
+    Var = 0x01,
+  };
+
+  ValueType val_type;
   Mutability mut;
 };
 
-using Byte = unsigned char;
-using Name = Vec<Byte>;
-using Bytes = Vec<Byte>;
-using ElemType = Byte;
-
 struct TableType {
-  unsigned char et_ = 0x70;
+  Byte elem_type = 0x70;
   Limit limit;
 };
 
