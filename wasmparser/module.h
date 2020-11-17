@@ -86,9 +86,13 @@ struct Export {
 };
 
 struct Func {
-  uint32_t type;
-  std::vector<ValueType> locals;
-  std::vector<Byte> body;
+  struct Local {
+    uint32_t n;
+    ValueType t;
+  };
+
+  std::vector<Local> locals;
+  std::vector<Byte> expr;
 };
 
 struct Code {
@@ -136,9 +140,9 @@ using RawBufferCodeSection = Section<Bytes>;
 using RawBufferElementSection = Section<Bytes>;
 using RawBufferGlobalSection = Section<Bytes>;
 
-using DataSection = Section<Vec<DataSegment>>;
-using CodeSection = Section<Vec<Code>>;
-using ElementSection = Section<Vec<ElementSegment>>;
+using CodeSection = std::vector<Code>;
+using DataSection = std::vector<DataSegment>;
+using ElementSection = std::vector<ElementSegment>;
 using GlobalSection = std::vector<Global>;
 
 struct Module {

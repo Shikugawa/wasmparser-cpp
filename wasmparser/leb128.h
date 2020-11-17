@@ -31,17 +31,37 @@
 
 namespace wasmparser {
 
+// TODO: buf_end is not needed anymore.
 size_t decodeULEB128(Byte *buf, Byte *buf_end, uint32_t *r) {
   Byte *p = buf;
   unsigned int shift = 0;
   uint32_t result = 0;
   unsigned char byte;
 
-  while (1) {
+  while (true) {
     if (p >= buf_end) return 0;
 
     byte = *p++;
     result |= ((uint32_t)(byte & 0x7f)) << shift;
+    if ((byte & 0x80) == 0) break;
+    shift += 7;
+  }
+
+  *r = result;
+  return p - buf;
+}
+
+size_t decodeULEB128(Byte *buf, Byte *buf_end, uint64_t *r) {
+  Byte *p = buf;
+  unsigned int shift = 0;
+  uint64_t result = 0;
+  unsigned char byte;
+
+  while (true) {
+    if (p >= buf_end) return 0;
+
+    byte = *p++;
+    result |= ((uint64_t)(byte & 0x7f)) << shift;
     if ((byte & 0x80) == 0) break;
     shift += 7;
   }
@@ -56,17 +76,64 @@ size_t decodeSLEB128(Byte *buf, Byte *buf_end, int32_t *r) {
   int32_t result = 0;
   unsigned char byte;
 
-  while (1) {
+  while (true) {
     if (p >= buf_end) return 0;
 
     byte = *p++;
-    result |= ((uint32_t)(byte & 0x7f)) << shift;
+    result |= ((int32_t)(byte & 0x7f)) << shift;
     shift += 7;
     if ((byte & 0x80) == 0) break;
   }
 
   if (shift < (sizeof(*r) * 8) && (byte & 0x40) != 0)
-    result |= -(((uint64_t)1) << shift);
+    result |= -(((int32_t)1) << shift);
+
+  *r = result;
+  return p - buf;
+}
+
+size_t decodeSLEB128(Byte *buf, Byte *buf_end, int64_t *r) {
+  Byte *p = buf;
+  unsigned int shift = 0;
+  int64_t result = 0;
+  unsigned char byte;
+
+  while (true) {
+    if (p >= buf_end) return 0;
+
+    byte = *p++;
+    result |= ((int64_t)(byte & 0x7f)) << shift;
+    shift += 7;
+    if ((byte & 0x80) == 0) break;
+  }
+
+  if (shift < (sizeof(*r) * 8) && (byte & 0x40) != 0)
+    result |= -(((int64_t)1) << shift);
+
+  *r = result;
+  return p - buf;
+}
+
+// TODO: Correct?
+size_t decodeS33LEB128(Byte *buf, Byte *buf_end, int64_t *r) {
+  Byte *p = buf;
+  unsigned int shift = 0;
+  int64_t result = 0;
+  unsigned char byte;
+
+  while (true) {
+    if (p >= buf_end) return 0;
+
+    byte = *p++;
+    result |= ((int64_t)(byte & 0x7f)) << shift;
+    shift += 7;
+    if ((byte & 0x80) == 0) break;
+  }
+
+  if (shift < (sizeof(*r) * 8) && (byte & 0x40) != 0)
+    result |= 0x1FFFFFFFF << shift;
+
+  if (result & 0x100000000 > 0) result = result - 8589934592;
 
   *r = result;
   return p - buf;

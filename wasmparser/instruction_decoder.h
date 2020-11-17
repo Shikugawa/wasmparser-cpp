@@ -5,9 +5,120 @@
 #ifndef WASMPARSER_CPP_INSTRUCTION_DECODER_H
 #define WASMPARSER_CPP_INSTRUCTION_DECODER_H
 
+#include "leb128.h"
 #include "module.h"
 
 namespace wasmparser {
+
+struct UnreachableInstruction;  // 0x00
+struct NopInstruction;          // 0x01
+
+struct BlockInstruction {
+  enum class Type : Byte {
+    BLOCK = 0x02,
+    LOOP = 0x03,
+    IF = 0x04,
+  };
+  Type type;
+  enum class BlockType {
+    Empty,
+    ValueType,
+    TypeIndex,
+  };
+  BlockType block_type;
+  union {
+    ValueType value_type;
+    int64_t type_idx;  // >= 0
+  };
+  // TODO: add instructions space
+};
+
+struct BranchInstruction {
+  enum class Type : Byte {
+    BR = 0x0C,
+    BR_IF = 0x0D,
+  };
+  Type type;
+  uint32_t index;
+};
+
+struct TableBranchInstruction {
+  std::vector<uint32_t> l;
+  uint32_t ln;
+};
+
+struct ReturnInstruction;  // 0x0F
+
+struct CallInstruction {
+  enum class Type : Byte {
+    CALL = 0x10,
+    CALL_INDIRECT = 0x11,
+  };
+  Type type;
+  uint32_t index;
+};
+
+struct ParametricInstruction {
+  enum class Type : Byte {
+    DROP = 0x1A,
+    SELECT = 0x1B,
+  };
+  Type type;
+};
+
+struct VariableInstruction {
+  enum class Type : Byte {
+    LOCAL_GET = 0x20,
+    LOCAL_SET = 0x21,
+    LOCAL_TEE = 0x22,
+    GLOBAL_GET = 0x23,
+    GLOBAL_SET = 0x24,
+  };
+  Type type;
+  uint32_t idx;
+};
+
+struct BasicMemoryInstruction {
+  enum class Type : Byte {
+    I32_LOAD = 0x28,
+    I64_LOAD = 0x29,
+    F32_LOAD = 0x2A,
+    F64_LOAD = 0x2B,
+    I32_LOAD8_S = 0x2C,
+    I32_LOAD8_U = 0x2D,
+    I32_LOAD16_S = 0x2E,
+    I32_LOAD16_U = 0x2F,
+    I64_LOAD8_S = 0x30,
+    I64_LOAD8_U = 0x31,
+    I64_LOAD16_S = 0x32,
+    I64_LOAD16_U = 0x33,
+    I64_LOAD32_S = 0x34,
+    I64_LOAD32_U = 0x35,
+    I32_STORE = 0x36,
+    I64_STORE = 0x37,
+    F32_STORE = 0x38,
+    F64_STORE = 0x39,
+    I32_STORE_8 = 0x3A,
+    I32_STORE_16 = 0x3B,
+    I64_STORE_8 = 0x3C,
+    I64_STORE_16 = 0x3D,
+    I64_STORE_32 = 0x3E,
+  };
+  Type type;
+  struct MemoryArgument {
+    uint32_t align;
+    uint32_t offset;
+  };
+  MemoryArgument arg;
+};
+
+struct MemorySizeInstruction {
+  enum class Type : Byte {
+    MEMORY_SIZE = 0x3F,
+    MEMORY_GLOW = 0x40,
+  };
+  Type type;
+};
 
 struct NumericConstInstruction {
   enum class Type : Byte {
@@ -17,8 +128,12 @@ struct NumericConstInstruction {
     F64_CONST = 0x44,
   };
   Type type;
-  // The length of operand is 4 or 8 bytes.
-  std::vector<Byte> operand;
+  union {
+    int32_t i32_value;
+    int64_t i64_value;
+    float f32_value;
+    double f64_value;
+  };
 };
 
 struct NumericInstruction {
@@ -159,40 +274,72 @@ class InstructionDecoder {
  public:
   InstructionDecoder(Module* m);
 
-  bool decodeGlobalSection(RawBufferGlobalSection * ds);
+  bool decodeGlobalSection(RawBufferGlobalSection* gs);
   bool decodeElementSection(RawBufferElementSection* es);
+  bool decodeDataSection(RawBufferDataSection* ds);
+  bool decodeCodeSection(RawBufferCodeSection* cs);
 
-  int32_t decodeIndex(uint32_t* idx);
+  int32_t decodeValueType(ValueType* vt);
+  int32_t decodeU32Integer(uint32_t* idx);
+  int32_t decodeI32Integer(int32_t* idx);
+  int32_t decodeI64Integer(int64_t* idx);
+  int32_t decodeS33AsI64(int64_t* idx);
   int32_t decodeGlobalType(GlobalType* gt);
   int32_t decodeExpr(Expr* e);
-  int32_t decodeNumericInstruction(NumericInstruction* ni);
+  int32_t decodeFunc(Func* f);
+  int32_t decodeLocals(Func::Local* l);
 
-  Byte* currentByte() {
-    return &target_section_->value.elem[idx_];
+  // Instruction decoder
+  int32_t decodeInstruction(/* Generic instruction pointer */);
+  int32_t decodeNumericInstruction(NumericInstruction* ni);
+  int32_t decodeNumericConstInstruction(NumericConstInstruction* nci);
+  int32_t decodeBasicMemoryInstruction(BasicMemoryInstruction* bmi);
+  int32_t decodeMemorySizeInstruction(MemorySizeInstruction* msi);
+  int32_t decodeMemoryArgument(BasicMemoryInstruction::MemoryArgument* arg);
+  int32_t decodeVariableInstruction(VariableInstruction* vi);
+  int32_t decodeParametricInstruction(ParametricInstruction* pi);
+  int32_t decodeBlockType(BlockInstruction* bi);
+  int32_t decodeBlockInstruction(BlockInstruction* bi);
+  int32_t decodeBranchInstruction(BranchInstruction* bi);
+  int32_t decodeTableBranchInstruction(TableBranchInstruction* tbi);
+  int32_t decodeCallInstruction(CallInstruction* ci);
+
+  Byte* fetchByte(size_t offset = 0) {
+    return &target_section_->value.elem[idx_ + offset];
+  }
+
+  uint32_t fetchVecSize() {
+    uint32_t size;
+    if (decodeU32Integer(&size) < 0) {
+      return 0;
+    }
+    return size;
   }
 
   size_t idx_;
   Section<Bytes>* target_section_;
 
- DataSection ds_;
- CodeSection cs_;
- GlobalSection gs_;
- ElementSection es_;
+  DataSection ds_;
+  CodeSection cs_;
+  GlobalSection gs_;
+  ElementSection es_;
 };
 
-bool InstructionDecoder::decodeGlobalSection(RawBufferGlobalSection* ds) {
+bool InstructionDecoder::decodeGlobalSection(RawBufferGlobalSection* gs) {
   idx_ = 0;
-  target_section_ = ds;
+  target_section_ = gs;
   while (idx_ < target_section_->value.size) {
     Global g;
     if (decodeGlobalType(&g.type) < 0) {
-      return -1;
+      return false;
     }
     if (decodeExpr(&g.init) < 0) {
-      return -1;
+      return false;
     }
     gs_.emplace_back(g);
   }
+  target_section_ = nullptr;
+  return true;
 }
 
 bool InstructionDecoder::decodeElementSection(RawBufferElementSection* es) {
@@ -200,29 +347,164 @@ bool InstructionDecoder::decodeElementSection(RawBufferElementSection* es) {
   target_section_ = es;
   while (idx_ < target_section_->value.size) {
     ElementSegment eseg;
-//    if ()
+    if (decodeU32Integer(&eseg.table) < 0) {
+      return false;
+    }
+    if (decodeExpr(&eseg.offset) < 0) {
+      return false;
+    }
+    uint32_t vec_size = fetchVecSize();
+    std::vector<uint32_t> init;
+    while (vec_size > 0) {
+      uint32_t num;
+      if (decodeU32Integer(&num) < 0) {
+        return false;
+      }
+      init.emplace_back(num);
+      --vec_size;
+    }
+    eseg.init = init;
+    es_.emplace_back(eseg);
   }
+  target_section_ = nullptr;
+  return true;
 }
 
-//InstructionDecoder::
+bool InstructionDecoder::decodeDataSection(RawBufferDataSection* ds) {
+  idx_ = 0;
+  target_section_ = ds;
+  while (idx_ < target_section_->value.size) {
+    DataSegment dseg;
+    if (decodeU32Integer(&dseg.data) < 0) {
+      return false;
+    }
+    if (decodeExpr(&dseg.offset) < 0) {
+      return false;
+    }
+    uint32_t vec_size = fetchVecSize();
+    std::vector<Byte> init;
+    while (vec_size > 0) {
+      init.emplace_back(*fetchByte());
+      ++idx_;
+      --vec_size;
+    }
+    dseg.init = init;
+    ds_.emplace_back(dseg);
+  }
+  target_section_ = nullptr;
+  return true;
+}
 
-int32_t InstructionDecoder::decodeGlobalType(GlobalType* gt) {
+bool InstructionDecoder::decodeCodeSection(RawBufferCodeSection* cs) {
+  idx_ = 0;
+  target_section_ = cs;
+  while (idx_ < target_section_->value.size) {
+    Code c;
+    if (decodeU32Integer(&c.size) < 0) {
+      return false;
+    }
+    if (decodeFunc(&c.code) < 0) {
+      return false;
+    }
+    cs_.emplace_back(c);
+  }
+  target_section_ = nullptr;
+  return true;
+}
+
+int32_t InstructionDecoder::decodeValueType(ValueType* vt) {
   size_t start_idx = idx_;
-  if (*currentByte() == 0x7F) {
-    gt->val_type = ValueType::I32;
-  } else if (*currentByte() == 0x7E) {
-    gt->val_type = ValueType::I64;
-  } else if (*currentByte() == 0x7D) {
-    gt->val_type = ValueType::F32;
-  } else if (*currentByte() == 0x7C) {
-    gt->val_type = ValueType::F64;
+  if (*fetchByte() == 0x7F) {
+    *vt = ValueType::I32;
+  } else if (*fetchByte() == 0x7E) {
+    *vt = ValueType::I64;
+  } else if (*fetchByte() == 0x7D) {
+    *vt = ValueType::F32;
+  } else if (*fetchByte() == 0x7C) {
+    *vt = ValueType::F64;
   } else {
     return -1;
   }
   ++idx_;
-  if (*currentByte() == 0x00) {
+  return start_idx - idx_;
+}
+
+int32_t InstructionDecoder::decodeFunc(Func* f) {
+  size_t start_idx = idx_;
+  auto vec_size = fetchVecSize();
+  while (vec_size > 0) {
+    Func::Local l;
+    if (decodeLocals(&l) < 0) {
+      return -1;
+    }
+    f->locals.emplace_back(l);
+    --vec_size;
+  }
+  if (decodeExpr(&f->expr) < 0) {
+    return -1;
+  }
+  return idx_ - start_idx;
+}
+
+int32_t InstructionDecoder::decodeLocals(Func::Local* l) {
+  size_t start_idx = idx_;
+  if (decodeU32Integer(&l->n) < 0) {
+    return -1;
+  }
+  if (decodeValueType(&l->t) < 0) {
+    return -1;
+  }
+  return idx_ - start_idx;
+}
+
+int32_t InstructionDecoder::decodeU32Integer(uint32_t* idx) {
+  size_t start_idx = idx_;
+  auto res = decodeULEB128(fetchByte(), fetchByte(3), idx);
+  if (res == 0) {
+    return -1;
+  }
+  idx_ += res;
+  return idx_ - start_idx;
+}
+
+int32_t InstructionDecoder::decodeI32Integer(int32_t* idx) {
+  size_t start_idx = idx_;
+  auto res = decodeSLEB128(fetchByte(), fetchByte(3), idx);
+  if (res == 0) {
+    return -1;
+  }
+  idx_ += res;
+  return idx_ - start_idx;
+}
+
+int32_t InstructionDecoder::decodeI64Integer(int64_t* idx) {
+  size_t start_idx = idx_;
+  auto res = decodeSLEB128(fetchByte(), fetchByte(7), idx);
+  if (res == 0) {
+    return -1;
+  }
+  idx_ += res;
+  return idx_ - start_idx;
+}
+
+int32_t InstructionDecoder::decodeS33AsI64(int64_t* idx) {
+  size_t start_idx = idx_;
+  auto res = decodeS33LEB128(fetchByte(), fetchByte(4), idx);
+  if (res == 0) {
+    return -1;
+  }
+  idx += res;
+  return idx_ - start_idx;
+}
+
+int32_t InstructionDecoder::decodeGlobalType(GlobalType* gt) {
+  size_t start_idx = idx_;
+  if (decodeValueType(&gt->val_type) < 0) {
+    return -1;
+  }
+  if (*fetchByte() == 0x00) {
     gt->mut = GlobalType::Mutability::Const;
-  } else if (*currentByte() == 0x01) {
+  } else if (*fetchByte() == 0x01) {
     gt->mut = GlobalType::Mutability::Var;
   } else {
     return -1;
@@ -233,9 +515,9 @@ int32_t InstructionDecoder::decodeGlobalType(GlobalType* gt) {
 
 int32_t InstructionDecoder::decodeExpr(Expr* e) {
   size_t start_idx = idx_;
-  if (0x45 <= *currentByte() && *currentByte() <= 0xC4) {
-    NumericInstruction ni;
-    if (decodeNumericInstruction(&ni) < 0) {
+  while (*fetchByte() != 0x0B) {
+    // TODO: let instruction
+    if (decodeInstruction() < 0) {
       return -1;
     }
     // TODO: push instruction
@@ -243,11 +525,208 @@ int32_t InstructionDecoder::decodeExpr(Expr* e) {
   return idx_ - start_idx;
 }
 
-int32_t InstructionDecoder::decodeNumericInstruction(NumericInstruction* ni) {
-  ni->type = static_cast<NumericInstruction::Type>(target_section_.value.elem[idx_]);
-  ++idx_;
+int32_t InstructionDecoder::decodeInstruction() {
+  size_t start_idx = idx_;
+  if (0x45 <= *fetchByte() && *fetchByte() <= 0xC4) {
+    NumericInstruction ni;
+    if (decodeNumericInstruction(&ni) < 0) {
+      return -1;
+    }
+  } else if (0x41 <= *fetchByte() && *fetchByte() <= 0x44) {
+    NumericConstInstruction nci;
+    if (decodeNumericConstInstruction(&nci) < 0) {
+      return -1;
+    }
+  } else if (0x20 <= *fetchByte() && *fetchByte() <= 0x24) {
+    VariableInstruction vi;
+    if (decodeVariableInstruction(&vi) < 0) {
+      return -1;
+    }
+  } else if (0x00 <= *fetchByte() && *fetchByte() <= 0x01) {
+
+  } else if (0x02 <= *fetchByte() && *fetchByte() <= 0x04) {
+
+  } else if (0x0C <= *fetchByte() && *fetchByte() <= 0x0E) {
+
+  } else if (0x0E == *fetchByte()) {
+
+  } else if (0x0F == *fetchByte()) {
+
+  } else if (0x10 <= *fetchByte() && *fetchByte() <= 0x11) {
+
+  } else {
+    assert(false);
+  }
+  return idx_ - start_idx;
 }
 
+int32_t InstructionDecoder::decodeNumericInstruction(NumericInstruction* ni) {
+  size_t start_idx = idx_;
+  ni->type = static_cast<NumericInstruction::Type>(*fetchByte());
+  ++idx_;
+  return idx_ - start_idx;
 }
+
+int32_t InstructionDecoder::decodeNumericConstInstruction(
+    NumericConstInstruction* nci) {
+  nci->type = static_cast<NumericConstInstruction::Type>(*fetchByte());
+  ++idx_;
+  switch (nci->type) {
+    case NumericConstInstruction::Type::I32_CONST:
+      if (decodeI32Integer(&nci->i32_value) < 0) {
+        return -1;
+      }
+      break;
+    case NumericConstInstruction::Type::I64_CONST:
+      if (decodeI64Integer(&nci->i64_value) < 0) {
+        return -1;
+      }
+      break;
+    case NumericConstInstruction::Type::F32_CONST:
+    case NumericConstInstruction::Type::F64_CONST:
+    default:
+      throw std::runtime_error("Not supported instruction has appeared");
+  }
+}
+
+int32_t InstructionDecoder::decodeBasicMemoryInstruction(
+    BasicMemoryInstruction* bmi) {
+  size_t start_idx = idx_;
+  bmi->type = static_cast<BasicMemoryInstruction::Type>(*fetchByte());
+  ++idx_;
+  if (decodeMemoryArgument(&bmi->arg) < 0) {
+    return -1;
+  }
+  return idx_ - start_idx;
+}
+
+int32_t InstructionDecoder::decodeMemorySizeInstruction(
+    MemorySizeInstruction* msi) {
+  size_t start_idx = idx_;
+  msi->type = static_cast<MemorySizeInstruction::Type>(*fetchByte());
+  ++idx_;
+  return idx_ - start_idx;
+}
+
+int32_t InstructionDecoder::decodeMemoryArgument(
+    BasicMemoryInstruction::MemoryArgument* arg) {
+  size_t start_idx = idx_;
+  if (decodeU32Integer(&arg->align) < 0) {
+    return -1;
+  }
+  if (decodeU32Integer(&arg->offset) < 0) {
+    return -1;
+  }
+  return idx_ - start_idx;
+}
+
+int32_t InstructionDecoder::decodeVariableInstruction(VariableInstruction* vi) {
+  size_t start_idx = idx_;
+  vi->type = static_cast<VariableInstruction::Type>(*fetchByte());
+  ++idx_;
+  if (decodeU32Integer(&vi->idx) < 0) {
+    return -1;
+  }
+  return idx_ - start_idx;
+}
+
+int32_t InstructionDecoder::decodeParametricInstruction(
+    ParametricInstruction* pi) {
+  size_t start_idx = idx_;
+  pi->type = static_cast<ParametricInstruction::Type>(*fetchByte());
+  ++idx_;
+  return idx_ - start_idx;
+}
+
+int32_t InstructionDecoder::decodeBlockType(BlockInstruction* bi) {
+  size_t start_idx = idx_;
+  if (*fetchByte() == 0x40) {
+    bi->block_type = BlockInstruction::BlockType::Empty;
+    ++idx_;
+    return idx_ - start_idx;
+  }
+  ValueType vt;
+  if (decodeValueType(&vt) > 0) {
+    bi->block_type = BlockInstruction::BlockType::ValueType;
+    bi->value_type = vt;
+    return idx_ - start_idx;
+  }
+  // TODO: it it work correctly?
+  if (decodeS33AsI64(&bi->type_idx) < 0) {
+    return -1;
+  }
+  bi->block_type = BlockInstruction::BlockType::TypeIndex;
+  return idx_ - start_idx;
+}
+
+int32_t InstructionDecoder::decodeBlockInstruction(BlockInstruction* bi) {
+  size_t start_idx = idx_;
+  bi->type = static_cast<BlockInstruction::Type>(*fetchByte());
+  ++idx_;
+  if (decodeBlockType(bi) < 0) {
+    return -1;
+  }
+else_block:
+  while (true) {
+    if (*fetchByte() == 0x0B) {
+      break;
+    }
+    if (*fetchByte() == 0x05) {
+      goto else_block;
+    }
+    if (decodeInstruction() < 0) {
+      return -1;
+    }
+  }
+  return idx_ - start_idx;
+}
+
+int32_t InstructionDecoder::decodeBranchInstruction(BranchInstruction* bi) {
+  size_t start_idx = idx_;
+  bi->type = static_cast<BranchInstruction::Type>(*fetchByte());
+  ++idx_;
+  if (decodeU32Integer(&bi->index) < 0) {
+    return -1;
+  }
+  return idx_ - start_idx;
+}
+
+int32_t InstructionDecoder::decodeTableBranchInstruction(
+    TableBranchInstruction* tbi) {
+  size_t start_idx = idx_;
+  ++idx_;
+  auto vec_size = fetchVecSize();
+  std::vector<uint32_t> label_idxs;
+  while (vec_size > 0) {
+    uint32_t label_idx;
+    if (decodeU32Integer(&label_idx) < 0) {
+      return -1;
+    }
+    label_idxs.emplace_back(label_idx);
+    --vec_size;
+  }
+  if (decodeU32Integer(&tbi->ln) < 0) {
+    return -1;
+  }
+  return idx_ - start_idx;
+}
+
+int32_t InstructionDecoder::decodeCallInstruction(CallInstruction* ci) {
+  size_t start_idx = idx_;
+  ci->type = static_cast<CallInstruction::Type>(*fetchByte());
+  ++idx_;
+  if (decodeU32Integer(&ci->index) < 0) {
+    return -1;
+  }
+  if (ci->type == CallInstruction::Type::CALL_INDIRECT) {
+    if (0x00 != *fetchByte()) {
+      return -1;
+    }
+    ++idx_;
+  }
+  return idx_ - start_idx;
+}
+
+}  // namespace wasmparser
 
 #endif  // WASMPARSER_CPP_INSTRUCTION_DECODER_H
