@@ -85,6 +85,34 @@ struct Export {
   ExportDesc desc;
 };
 
+struct Func {
+  uint32_t type;
+  std::vector<ValueType> locals;
+  std::vector<Byte> body;
+};
+
+struct Code {
+  uint32_t size;
+  Func code;
+};
+
+struct Global {
+  GlobalType type;
+  Expr init;
+};
+
+struct ElementSegment {
+  uint32_t table;
+  Expr offset;
+  std::vector<uint32_t> init;
+};
+
+struct DataSegment {
+  uint32_t data;
+  Expr offset;
+  std::vector<Byte> init;
+};
+
 template <class T>
 struct Section {
   uint32_t size;
@@ -107,6 +135,11 @@ using RawBufferDataSection = Section<Bytes>;
 using RawBufferCodeSection = Section<Bytes>;
 using RawBufferElementSection = Section<Bytes>;
 using RawBufferGlobalSection = Section<Bytes>;
+
+using DataSection = Section<Vec<DataSegment>>;
+using CodeSection = Section<Vec<Code>>;
+using ElementSection = Section<Vec<ElementSegment>>;
+using GlobalSection = std::vector<Global>;
 
 struct Module {
  public:
