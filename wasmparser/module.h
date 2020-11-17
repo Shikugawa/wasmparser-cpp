@@ -28,6 +28,7 @@
 
 #include <variant>
 
+#include "instructions.h"
 #include "types.h"
 
 namespace wasmparser {
@@ -92,7 +93,7 @@ struct Func {
   };
 
   std::vector<Local> locals;
-  std::vector<Byte> expr;
+  std::vector<Instruction> expr;
 };
 
 struct Code {
@@ -102,18 +103,18 @@ struct Code {
 
 struct Global {
   GlobalType type;
-  Expr init;
+  std::vector<Instruction> init;
 };
 
 struct ElementSegment {
   uint32_t table;
-  Expr offset;
+  std::vector<Instruction> offset;
   std::vector<uint32_t> init;
 };
 
 struct DataSegment {
   uint32_t data;
-  Expr offset;
+  std::vector<Instruction> offset;
   std::vector<Byte> init;
 };
 
