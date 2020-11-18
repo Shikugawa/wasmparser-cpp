@@ -66,6 +66,21 @@ class InstructionDecoder {
   ElementSection es_;
 };
 
+InstructionDecoder::InstructionDecoder(Module* m) {
+  if (!decodeGlobalSection(&m->global_sec)) {
+    throw std::runtime_error("Failed to decode global section.");
+  }
+  if (!decodeDataSection(&m->data_sec)) {
+    throw std::runtime_error("Failed to decode data section");
+  }
+  if (!decodeCodeSection(&m->code_sec)) {
+    throw std::runtime_error("Failed to decode code section");
+  }
+  if (!decodeElementSection(&m->element_sec)) {
+    throw std::runtime_error("Failed to decode element section");
+  }
+}
+
 bool InstructionDecoder::decodeGlobalSection(RawBufferGlobalSection* gs) {
   idx_ = 0;
   target_section_ = gs;
@@ -167,7 +182,7 @@ int32_t InstructionDecoder::decodeValueType(ValueType* vt) {
     return -1;
   }
   ++idx_;
-  return start_idx - idx_;
+  return idx_ - start_idx;
 }
 
 int32_t InstructionDecoder::decodeFunc(Func* f) {
@@ -210,7 +225,7 @@ int32_t InstructionDecoder::decodeU32Integer(uint32_t* idx) {
 
 int32_t InstructionDecoder::decodeI32Integer(int32_t* idx) {
   size_t start_idx = idx_;
-  auto res = decodeSLEB128(fetchByte(), fetchByte(3), idx);
+  auto res = decodeSLEB128(fetchByte(), fetchByte(4), idx);
   if (res == 0) {
     return -1;
   }
@@ -220,7 +235,7 @@ int32_t InstructionDecoder::decodeI32Integer(int32_t* idx) {
 
 int32_t InstructionDecoder::decodeI64Integer(int64_t* idx) {
   size_t start_idx = idx_;
-  auto res = decodeSLEB128(fetchByte(), fetchByte(7), idx);
+  auto res = decodeSLEB128(fetchByte(), fetchByte(8), idx);
   if (res == 0) {
     return -1;
   }
@@ -263,6 +278,7 @@ int32_t InstructionDecoder::decodeExpr(std::vector<Instruction>* iseq) {
     }
     iseq->emplace_back(i);
   }
+  ++idx_;
   return idx_ - start_idx;
 }
 
@@ -371,6 +387,7 @@ int32_t InstructionDecoder::decodeNumericInstruction(NumericInstruction* ni) {
 
 int32_t InstructionDecoder::decodeNumericConstInstruction(
     NumericConstInstruction* nci) {
+  size_t start_idx = idx_;
   nci->type = static_cast<NumericConstInstruction::Type>(*fetchByte());
   ++idx_;
   switch (nci->type) {
@@ -389,6 +406,7 @@ int32_t InstructionDecoder::decodeNumericConstInstruction(
     default:
       throw std::runtime_error("Not supported instruction has appeared");
   }
+  return idx_ - start_idx;
 }
 
 int32_t InstructionDecoder::decodeBasicMemoryInstruction(
@@ -492,6 +510,7 @@ else_block:
     }
     iseq.emplace_back(i);
   }
+  ++idx_;
   return idx_ - start_idx;
 }
 
