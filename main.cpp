@@ -25,9 +25,11 @@
 
 #include <iostream>
 #include "wasmparser/parser.h"
+#include "wasmparser/instruction_decoder.h"
 
 int main() {
     auto mod = wasmparser::Parser::doParse("../testdata/fibonacci.wasm");
     std::cout << mod.code_sec.size << std::endl;
+    auto decoder = wasmparser::InstructionDecoder(&mod);
     return 0;
 }

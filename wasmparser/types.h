@@ -33,7 +33,7 @@
 
 namespace wasmparser {
 
-enum class ValueType : uint8_t {
+enum class ValueType : Byte {
   I32 = 0x7F,
   I64 = 0x7E,
   F32 = 0x7D,

@@ -28,6 +28,7 @@
 
 #include <variant>
 
+#include "instructions.h"
 #include "types.h"
 
 namespace wasmparser {
@@ -85,6 +86,38 @@ struct Export {
   ExportDesc desc;
 };
 
+struct Func {
+  struct Local {
+    uint32_t n;
+    ValueType t;
+  };
+
+  std::vector<Local> locals;
+  std::vector<Instruction> expr;
+};
+
+struct Code {
+  uint32_t size;
+  Func code;
+};
+
+struct Global {
+  GlobalType type;
+  std::vector<Instruction> init;
+};
+
+struct ElementSegment {
+  uint32_t table;
+  std::vector<Instruction> offset;
+  std::vector<uint32_t> init;
+};
+
+struct DataSegment {
+  uint32_t data;
+  std::vector<Instruction> offset;
+  std::vector<Byte> init;
+};
+
 template <class T>
 struct Section {
   uint32_t size;
@@ -107,6 +140,11 @@ using RawBufferDataSection = Section<Bytes>;
 using RawBufferCodeSection = Section<Bytes>;
 using RawBufferElementSection = Section<Bytes>;
 using RawBufferGlobalSection = Section<Bytes>;
+
+using CodeSection = std::vector<Code>;
+using DataSection = std::vector<DataSegment>;
+using ElementSection = std::vector<ElementSegment>;
+using GlobalSection = std::vector<Global>;
 
 struct Module {
  public:
