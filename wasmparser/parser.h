@@ -77,6 +77,14 @@ class Parser {
   int32_t doParseCodeSection(RawBufferCodeSection* cs);
   int32_t doParseDataSection(RawBufferDataSection* ds);
 
+  uint32_t fetchVecSize() {
+    uint32_t size;
+    if (doParseU32Integer(&size) < 0) {
+      return 0;
+    }
+    return size;
+  }
+
   size_t idx_{8};
   ZeroCopyBufferPtr buf_;
 };
@@ -311,17 +319,14 @@ int32_t Parser::doParseExportSection(ExportSection* es) {
   if (doParseU32Integer(&es->size) < 0) {
     return -1;
   }
-  if (doParseU32Integer(&es->value.size) < 0) {
-    return -1;
-  }
-  size_t val_count = 0;
-  while (val_count < es->value.size) {
+  size_t vec_size = fetchVecSize();
+  while (vec_size > 0) {
     Export e;
     if (doParseExport(&e) < 0) {
       return -1;
     }
-    es->value.elem.emplace_back(e);
-    ++val_count;
+    es->value.emplace_back(e);
+    --vec_size;
   }
   return idx_ - start_idx;
 }
@@ -356,16 +361,14 @@ int32_t Parser::doParseElementSection(RawBufferElementSection* es) {
   if (doParseU32Integer(&es->size) < 0) {
     return -1;
   }
-  if (doParseU32Integer(&es->value.size) < 0) {
-    return -1;
-  }
-  auto u32_byte_len = doParseU32Integer(&es->value.size);
+  uint32_t vec_size;
+  auto u32_byte_len = doParseU32Integer(&vec_size);
   if (u32_byte_len < 0) {
     return -1;
   }
   size_t vec_bytes = es->size - u32_byte_len;
   while (vec_bytes > 0) {
-    es->value.elem.emplace_back(*buf_->at(idx_));
+    es->value.emplace_back(*buf_->at(idx_));
     --vec_bytes;
     ++idx_;
   }
@@ -377,17 +380,14 @@ int32_t Parser::doParseFunctionSection(FuncSection* fc) {
   if (doParseU32Integer(&fc->size) < 0) {
     return -1;
   }
-  if (doParseU32Integer(&fc->value.size) < 0) {
-    return -1;
-  }
-  size_t val_count = 0;
-  while (val_count < fc->value.size) {
+  auto vec_size = fetchVecSize();
+  while (vec_size > 0) {
     uint32_t idx;
     if (doParseU32Integer(&idx) < 0) {
       return -1;
     }
-    fc->value.elem.emplace_back(idx);
-    ++val_count;
+    fc->value.emplace_back(idx);
+    --vec_size;
   }
   return idx_ - start_idx;
 }
@@ -397,17 +397,14 @@ int32_t Parser::doParseImportSection(ImportSection* is) {
   if (doParseU32Integer(&is->size) < 0) {
     return -1;
   }
-  if (doParseU32Integer(&is->value.size) < 0) {
-    return -1;
-  }
-  size_t val_count = 0;
-  while (val_count < is->value.size) {
+  auto vec_size = fetchVecSize();
+  while (vec_size > 0) {
     Import ip;
     if (doParseImport(&ip) < 0) {
       return -1;
     }
-    is->value.elem.emplace_back(ip);
-    ++val_count;
+    is->value.emplace_back(ip);
+    --vec_size;
   }
   return idx_ - start_idx;
 }
@@ -417,17 +414,14 @@ int32_t Parser::doParseTableSection(TableSection* ts) {
   if (doParseU32Integer(&ts->size) < 0) {
     return -1;
   }
-  if (doParseU32Integer(&ts->value.size) < 0) {
-    return -1;
-  }
-  size_t val_count = 0;
-  while (val_count < ts->value.size) {
+  auto vec_size = fetchVecSize();
+  while (vec_size > 0) {
     TableType tt;
     if (doParseTableTypes(&tt) < 0) {
       return -1;
     }
-    ts->value.elem.emplace_back(tt);
-    ++val_count;
+    ts->value.emplace_back(tt);
+    --vec_size;
   }
   return idx_ - start_idx;
 }
@@ -437,13 +431,14 @@ int32_t Parser::doParseGlobalSection(RawBufferGlobalSection* gs) {
   if (doParseU32Integer(&gs->size) < 0) {
     return -1;
   }
-  auto u32_byte_len = doParseU32Integer(&gs->value.size);
+  uint32_t vec_size;
+  auto u32_byte_len = doParseU32Integer(&vec_size);
   if (u32_byte_len < 0) {
     return -1;
   }
   size_t vec_bytes = gs->size - u32_byte_len;
   while (vec_bytes > 0) {
-    gs->value.elem.emplace_back(*buf_->at(idx_));
+    gs->value.emplace_back(*buf_->at(idx_));
     --vec_bytes;
     ++idx_;
   }
@@ -455,13 +450,14 @@ int32_t Parser::doParseCodeSection(RawBufferCodeSection* cs) {
   if (doParseU32Integer(&cs->size) < 0) {
     return -1;
   }
-  auto u32_byte_len = doParseU32Integer(&cs->value.size);
+  uint32_t vec_size;
+  auto u32_byte_len = doParseU32Integer(&vec_size);
   if (u32_byte_len < 0) {
     return -1;
   }
   size_t vec_bytes = cs->size - u32_byte_len;
   while (vec_bytes > 0) {
-    cs->value.elem.emplace_back(*buf_->at(idx_));
+    cs->value.emplace_back(*buf_->at(idx_));
     --vec_bytes;
     ++idx_;
   }
@@ -510,13 +506,14 @@ int32_t Parser::doParseDataSection(RawBufferDataSection* ds) {
   if (doParseU32Integer(&ds->size) < 0) {
     return -1;
   }
-  auto u32_byte_len = doParseU32Integer(&ds->value.size);
+  uint32_t vec_size;
+  auto u32_byte_len = doParseU32Integer(&vec_size);
   if (u32_byte_len < 0) {
     return -1;
   }
   size_t vec_bytes = ds->size - u32_byte_len;
   while (vec_bytes > 0) {
-    ds->value.elem.emplace_back(*buf_->at(idx_));
+    ds->value.emplace_back(*buf_->at(idx_));
     --vec_bytes;
     ++idx_;
   }
@@ -526,17 +523,14 @@ int32_t Parser::doParseDataSection(RawBufferDataSection* ds) {
 
 int32_t Parser::doParseResultTypes(ResultType* rt) {
   size_t start_idx = idx_;
-  if (doParseU32Integer(&rt->size) < 0) {
-    return -1;
-  }
-  size_t val_count = 0;
-  while (val_count < rt->size) {
+  auto vec_size = fetchVecSize();
+  while (vec_size > 0) {
     ValueType val;
     if (doParseValueTypes(&val) < 0) {
       return -1;
     }
-    rt->elem.emplace_back(val);
-    ++val_count;
+    rt->emplace_back(val);
+    --vec_size;
   }
   return idx_ - start_idx;
 }
@@ -569,17 +563,14 @@ int32_t Parser::doParseTypeSection(TypeSection* ts) {
   if (doParseU32Integer(&ts->size) < 0) {
     return -1;
   }
-  if (doParseU32Integer(&ts->value.size) < 0) {
-    return -1;
-  }
-  size_t val_count = 0;
-  while (val_count < ts->value.size) {
+  auto vec_size = fetchVecSize();
+  while (vec_size > 0) {
     FuncType ft;
     if (doParseFuncType(&ft) < 0) {
       return -1;
     }
-    ts->value.elem.emplace_back(ft);
-    ++val_count;
+    ts->value.emplace_back(ft);
+    --vec_size;
   }
   return idx_ - start_idx;
 }
@@ -589,17 +580,14 @@ int32_t Parser::doParseMemorySection(MemorySection* ms) {
   if (doParseU32Integer(&ms->size) < 0) {
     return -1;
   }
-  if (doParseU32Integer(&ms->value.size) < 0) {
-    return -1;
-  }
-  size_t val_count = 0;
-  while (val_count < ms->value.size) {
+  auto vec_size = fetchVecSize();
+  while (vec_size > 0) {
     MemoryType mt;
     if (doParseMemoryTypes(&mt) < 0) {
       return -1;
     }
-    ms->value.elem.emplace_back(mt);
-    ++val_count;
+    ms->value.emplace_back(mt);
+    --vec_size;
   }
   return idx_ - start_idx;
 }
@@ -640,21 +628,18 @@ int32_t Parser::doParseCustomSection(CustomSection* cs) {
 
 int32_t Parser::doParseName(Name* name) {
   size_t start_idx = idx_;
-  if (doParseU32Integer(&name->size) < 0) {
-    return -1;
-  }
-  size_t val_count = 0;
-  while (val_count < name->size) {
-    name->elem.emplace_back(*buf_->at(idx_));
+  auto vec_size = fetchVecSize();
+  while (vec_size > 0) {
+    name->emplace_back(*buf_->at(idx_));
     ++idx_;
-    ++val_count;
+    --vec_size;
   }
   return idx_ - start_idx;
 }
 
 int32_t Parser::doParseU32Integer(uint32_t* size) {
   size_t start_idx = idx_;
-  auto res = decodeULEB128(buf_->at(idx_), buf_->at(idx_ + 3), size);
+  auto res = decodeULEB128(buf_->at(idx_), size);
   if (res == 0) {
     return -1;
   }

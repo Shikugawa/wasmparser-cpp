@@ -68,7 +68,7 @@ class InstructionDecoder {
   int32_t decodeCallInstruction(CallInstruction* ci);
 
   Byte* fetchByte(size_t offset = 0) {
-    return &target_section_->value.elem[idx_ + offset];
+    return &target_section_->value[idx_ + offset];
   }
 
   uint32_t fetchVecSize() {
@@ -106,7 +106,7 @@ InstructionDecoder::InstructionDecoder(Module* m) {
 bool InstructionDecoder::decodeGlobalSection(RawBufferGlobalSection* gs) {
   idx_ = 0;
   target_section_ = gs;
-  while (idx_ < target_section_->value.size) {
+  while (idx_ < target_section_->value.size()) {
     Global g;
     if (decodeGlobalType(&g.type) < 0) {
       return false;
@@ -123,7 +123,7 @@ bool InstructionDecoder::decodeGlobalSection(RawBufferGlobalSection* gs) {
 bool InstructionDecoder::decodeElementSection(RawBufferElementSection* es) {
   idx_ = 0;
   target_section_ = es;
-  while (idx_ < target_section_->value.size) {
+  while (idx_ < target_section_->value.size()) {
     ElementSegment eseg;
     if (decodeU32Integer(&eseg.table) < 0) {
       return false;
@@ -151,7 +151,7 @@ bool InstructionDecoder::decodeElementSection(RawBufferElementSection* es) {
 bool InstructionDecoder::decodeDataSection(RawBufferDataSection* ds) {
   idx_ = 0;
   target_section_ = ds;
-  while (idx_ < target_section_->value.size) {
+  while (idx_ < target_section_->value.size()) {
     DataSegment dseg;
     if (decodeU32Integer(&dseg.data) < 0) {
       return false;
@@ -176,7 +176,7 @@ bool InstructionDecoder::decodeDataSection(RawBufferDataSection* ds) {
 bool InstructionDecoder::decodeCodeSection(RawBufferCodeSection* cs) {
   idx_ = 0;
   target_section_ = cs;
-  while (idx_ < target_section_->value.size) {
+  while (idx_ < target_section_->value.size()) {
     Code c;
     if (decodeU32Integer(&c.size) < 0) {
       return false;
@@ -237,7 +237,7 @@ int32_t InstructionDecoder::decodeLocals(Func::Local* l) {
 
 int32_t InstructionDecoder::decodeU32Integer(uint32_t* idx) {
   size_t start_idx = idx_;
-  auto res = decodeULEB128(fetchByte(), fetchByte(3), idx);
+  auto res = decodeULEB128(fetchByte(), idx);
   if (res == 0) {
     return -1;
   }
@@ -247,7 +247,7 @@ int32_t InstructionDecoder::decodeU32Integer(uint32_t* idx) {
 
 int32_t InstructionDecoder::decodeI32Integer(int32_t* idx) {
   size_t start_idx = idx_;
-  auto res = decodeSLEB128(fetchByte(), fetchByte(4), idx);
+  auto res = decodeSLEB128(fetchByte(), idx);
   if (res == 0) {
     return -1;
   }
@@ -257,7 +257,7 @@ int32_t InstructionDecoder::decodeI32Integer(int32_t* idx) {
 
 int32_t InstructionDecoder::decodeI64Integer(int64_t* idx) {
   size_t start_idx = idx_;
-  auto res = decodeSLEB128(fetchByte(), fetchByte(8), idx);
+  auto res = decodeSLEB128(fetchByte(), idx);
   if (res == 0) {
     return -1;
   }
@@ -267,7 +267,7 @@ int32_t InstructionDecoder::decodeI64Integer(int64_t* idx) {
 
 int32_t InstructionDecoder::decodeS33AsI64(int64_t* idx) {
   size_t start_idx = idx_;
-  auto res = decodeS33LEB128(fetchByte(), fetchByte(4), idx);
+  auto res = decodeS33LEB128(fetchByte(), idx);
   if (res == 0) {
     return -1;
   }

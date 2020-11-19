@@ -40,7 +40,7 @@ enum class ValueType : Byte {
   F64 = 0x7C,
 };
 
-using ResultType = Vec<ValueType>;
+using ResultType = std::vector<ValueType>;
 
 struct FuncType {
   ResultType param_type;

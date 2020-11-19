@@ -124,12 +124,12 @@ struct Section {
   T value;
 };
 
-using TypeSection = Section<Vec<FuncType>>;
-using ImportSection = Section<Vec<Import>>;
-using FuncSection = Section<Vec<uint32_t>>;
-using TableSection = Section<Vec<TableType>>;
-using MemorySection = Section<Vec<MemoryType>>;
-using ExportSection = Section<Vec<Export>>;
+using TypeSection = Section<std::vector<FuncType>>;
+using ImportSection = Section<std::vector<Import>>;
+using FuncSection = Section<std::vector<uint32_t>>;
+using TableSection = Section<std::vector<TableType>>;
+using MemorySection = Section<std::vector<MemoryType>>;
+using ExportSection = Section<std::vector<Export>>;
 using StartSection = Section<uint32_t>;
 using CustomSection = Section<Custom>;
 

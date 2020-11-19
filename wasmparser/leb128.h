@@ -31,112 +31,115 @@
 
 namespace wasmparser {
 
-// TODO: buf_end is not needed anymore.
-size_t decodeULEB128(Byte *buf, Byte *buf_end, uint32_t *r) {
-  Byte *p = buf;
-  unsigned int shift = 0;
+size_t decodeULEB128(Byte *buf, uint32_t *r) {
   uint32_t result = 0;
-  unsigned char byte;
+  int shift = 0;
+  Byte byte;
+  int i = 0;
 
   while (true) {
-    if (p >= buf_end) return 0;
-
-    byte = *p++;
-    result |= ((uint32_t)(byte & 0x7f)) << shift;
-    if ((byte & 0x80) == 0) break;
+    byte = buf[i];
+    result |= static_cast<uint32_t>(byte & 0x7f) << shift;
     shift += 7;
+    ++i;
+    if ((byte & 0x80) == 0) {
+      break;
+    }
   }
-
   *r = result;
-  return p - buf;
+  return i;
 }
 
-size_t decodeULEB128(Byte *buf, Byte *buf_end, uint64_t *r) {
-  Byte *p = buf;
-  unsigned int shift = 0;
+size_t decodeULEB128(Byte *buf, uint64_t *r) {
   uint64_t result = 0;
-  unsigned char byte;
+  int shift = 0;
+  Byte byte;
+  int i = 0;
 
   while (true) {
-    if (p >= buf_end) return 0;
-
-    byte = *p++;
-    result |= ((uint64_t)(byte & 0x7f)) << shift;
-    if ((byte & 0x80) == 0) break;
+    byte = buf[i];
+    result |= static_cast<uint64_t>(byte & 0x7f) << shift;
     shift += 7;
+    ++i;
+    if ((byte & 0x80) == 0) {
+      break;
+    }
   }
-
   *r = result;
-  return p - buf;
+  return i;
 }
 
-size_t decodeSLEB128(Byte *buf, Byte *buf_end, int32_t *r) {
-  Byte *p = buf;
-  unsigned int shift = 0;
+size_t decodeSLEB128(Byte *buf, int32_t *r) {
   int32_t result = 0;
-  unsigned char byte;
+  int shift = 0;
+  Byte byte;
+  int i = 0;
 
   while (true) {
-    if (p >= buf_end) return 0;
-
-    byte = *p++;
-    result |= ((int32_t)(byte & 0x7f)) << shift;
+    byte = buf[i];
+    result |= static_cast<int32_t>(byte & 0x7f) << shift;
     shift += 7;
-    if ((byte & 0x80) == 0) break;
+    ++i;
+    if ((byte & 0x80) == 0) {
+      break;
+    }
   }
 
-  if (shift < (sizeof(*r) * 8) && (byte & 0x40) != 0)
-    result |= -(((int32_t)1) << shift);
+  if (shift < 32 && (byte & 0x40) != 0) {
+    result |= static_cast<int32_t>(~0 << shift);
+  }
 
   *r = result;
-  return p - buf;
+  return i;
 }
 
-size_t decodeSLEB128(Byte *buf, Byte *buf_end, int64_t *r) {
-  Byte *p = buf;
-  unsigned int shift = 0;
+size_t decodeSLEB128(Byte *buf, int64_t *r) {
   int64_t result = 0;
-  unsigned char byte;
+  int shift = 0;
+  Byte byte;
+  int i = 0;
 
   while (true) {
-    if (p >= buf_end) return 0;
-
-    byte = *p++;
-    result |= ((int64_t)(byte & 0x7f)) << shift;
+    byte = buf[i];
+    result |= static_cast<int64_t>(byte & 0x7f) << shift;
     shift += 7;
-    if ((byte & 0x80) == 0) break;
+    ++i;
+    if ((byte & 0x80) == 0) {
+      break;
+    }
   }
 
-  if (shift < (sizeof(*r) * 8) && (byte & 0x40) != 0)
-    result |= -(((int64_t)1) << shift);
+  if (shift < 64 && (byte & 0x40) != 0) {
+    result |= static_cast<int64_t>(~0 << shift);
+  }
 
   *r = result;
-  return p - buf;
+  return i;
 }
 
 // TODO: Correct?
-size_t decodeS33LEB128(Byte *buf, Byte *buf_end, int64_t *r) {
-  Byte *p = buf;
-  unsigned int shift = 0;
+size_t decodeS33LEB128(Byte *buf, int64_t *r) {
   int64_t result = 0;
-  unsigned char byte;
+  int shift = 0;
+  Byte byte;
+  int i = 0;
 
   while (true) {
-    if (p >= buf_end) return 0;
-
-    byte = *p++;
-    result |= ((int64_t)(byte & 0x7f)) << shift;
+    byte = buf[i];
+    result |= static_cast<int64_t>(byte & 0x7f) << shift;
     shift += 7;
-    if ((byte & 0x80) == 0) break;
+    ++i;
+    if ((byte & 0x80) == 0) {
+      break;
+    }
   }
 
-  if (shift < (sizeof(*r) * 8) && (byte & 0x40) != 0)
-    result |= 0x1FFFFFFFF << shift;
-
-  if (result & 0x100000000 > 0) result = result - 8589934592;
+  if (shift < 64 && (byte & 0x40) != 0) {
+    result |= static_cast<int64_t>(~0 << shift);
+  }
 
   *r = result;
-  return p - buf;
+  return i;
 }
 
 }  // namespace wasmparser
